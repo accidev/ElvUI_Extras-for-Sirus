@@ -1094,13 +1094,8 @@ function mod:AwesomeUpdateUnitInfo(frame, db, unit)
 		local name, realm = UnitName(unit)
 		if realm or not name or name == UNKNOWN then return end
 
-		scanner:ClearLines()
-		scanner:SetUnit(unit)
-
-		local guildName = _G["ExtrasGT_ScanningTooltipTextLeft2"]:GetText() or GetGuildInfo(unit)
-		if not guildName or find(gsub(guildName, "[%s%d%p]+", ""), TOOLTIP_UNIT_LEVEL_CLASS, 1, true) then
-			return
-		end
+		local guildName = GetGuildInfo(unit)
+		if not guildName then return end
 
 		self:UpdateTitle(frame, db, unit, guildName, name)
 	elseif not UnitPlayerControlled(unit) then
@@ -1144,7 +1139,7 @@ function mod:UpdateOccupation(occupationIcon, db, unit, name)
 		else
 			local guid = unit and UnitGUID(unit)
 			if guid then
-				local npcId = tonumber(sub(guid, -10, -7), 16)
+				local npcId = C_GUID.GetObjectID(guid)
 				for occupation, entries in pairs(NPCOccupations_data) do
 					if entries[npcId] then
 						occupationIcon.icon:SetTexture(dataTexMap[occupation])
@@ -1161,7 +1156,7 @@ function mod:UpdateOccupation(occupationIcon, db, unit, name)
 	else
 		local guid = unit and UnitGUID(unit)
 		if guid then
-			local npcId = tonumber(sub(guid, -10, -7), 16)
+			local npcId = C_GUID.GetObjectID(guid)
 			for occupation, entries in pairs(NPCOccupations_data) do
 				if entries[npcId] then
 					occupationIcon.icon:SetTexture(dataTexMap[occupation])
@@ -1179,11 +1174,8 @@ function mod:UpdateUnitInfo(frame, db, unit)
 		local name, realm = UnitName(unit)
 		if realm or not name or name == UNKNOWN then return end
 
-		scanner:ClearLines()
-		scanner:SetUnit(unit)
-
-		local guildName = _G["ExtrasGT_ScanningTooltipTextLeft2"]:GetText()
-		if not guildName or find(gsub(guildName, "[%s%d%p]+", ""), TOOLTIP_UNIT_LEVEL_CLASS, 1, true) then
+		local guildName = GetGuildInfo(unit)
+		if not guildName then
 			if db.UnitTitle[name] then
 				db.UnitTitle[name] = nil
 			end
