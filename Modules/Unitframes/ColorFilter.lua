@@ -1687,7 +1687,7 @@ function mod:UpdateAll(db)
 
 	for _, frame in ipairs(core:AggregateUnitFrames()) do
 		local unit = frame.unitframeType
-		if db.units[unit].enabled then
+		if db.units[unit] and db.units[unit].enabled then
 			if not metaTable.units[unit] then
 				metaTable.units[unit] = {}
 				metaTable.events[unit] = {}

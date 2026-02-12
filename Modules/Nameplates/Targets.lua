@@ -19,7 +19,7 @@ local myname = E.myname
 local funcs, values = {}, {}
 local frames = mod.frames
 
-local _G, pairs, ipairs, loadstring, setfenv, unpack, next = _G, pairs, ipairs, loadstring, setfenv, unpack, next
+local _G, pairs, ipairs, unpack, next = _G, pairs, ipairs, unpack, next
 local find, format, gsub, match, gmatch = string.find, string.format, string.gsub, string.match, string.gmatch
 local utf8lower, utf8sub, utf8len = string.utf8lower, string.utf8sub, string.utf8len
 local twipe = table.wipe
@@ -41,80 +41,47 @@ local separatorMap = {
 	CURVE1 = "( %s )"
 }
 
-local function generateUpdateFunction(config)
-    local highlightCode, colorCode, textDisplayCode
-	local separator = separatorMap[config.separator]
+local function applyReactionColor(targetName, unitTarget)
+	local reactionType = UnitReaction(unitTarget, 'player')
+	if reactionType == 4 then
+		local cols = targetName.reactions.neutral
+		targetName:SetTextColor(cols.r or targetName.r or 1, cols.g or targetName.g or 1, cols.b or targetName.b or 1)
+	elseif reactionType and reactionType > 4 then
+		if UnitIsPlayer(unitTarget) then
+			local cols = targetName.reactions.friendlyPlayer
+			targetName:SetTextColor(cols.r or targetName.r or 1, cols.g or targetName.g or 1, cols.b or targetName.b or 1)
+		else
+			local cols = targetName.reactions.good
+			targetName:SetTextColor(cols.r or targetName.r or 1, cols.g or targetName.g or 1, cols.b or targetName.b or 1)
+		end
+	else
+		local cols = targetName.reactions.bad
+		targetName:SetTextColor(cols.r or targetName.r or 1, cols.g or targetName.g or 1, cols.b or targetName.b or 1)
+	end
+end
 
-    if config.highlightSelf or config.highlightOthers then
-        highlightCode = "targetName.isPlayerName = name == myname"
-    end
-
-    if config.reactionColor and config.classColor then
-        colorCode = [[
-            if UnitIsPlayer(unitTarget) then
+local function buildColorFunction(useClassColor, useReactionColor)
+	if useReactionColor and useClassColor then
+		return function(targetName, unitTarget)
+			if UnitIsPlayer(unitTarget) then
 				local _, class = UnitClass(unitTarget)
 				if class then
 					local color = _G.CUSTOM_CLASS_COLORS and _G.CUSTOM_CLASS_COLORS[class] or RAID_CLASS_COLORS[class] or {}
 					targetName:SetTextColor(color.r or targetName.r or 1, color.g or targetName.g or 1, color.b or targetName.b or 1)
 				else
-					local reactionType = UnitReaction(unitTarget, 'player')
-					if reactionType == 4 then
-						local cols = targetName.reactions.neutral
-						targetName:SetTextColor(cols.r or targetName.r or 1, cols.g or targetName.g or 1, cols.b or targetName.b or 1)
-					elseif reactionType and reactionType > 4 then
-						if UnitIsPlayer(unitTarget) then
-							local cols = targetName.reactions.friendlyPlayer
-							targetName:SetTextColor(cols.r or targetName.r or 1, cols.g or targetName.g or 1, cols.b or targetName.b or 1)
-						else
-							local cols = targetName.reactions.good
-							targetName:SetTextColor(cols.r or targetName.r or 1, cols.g or targetName.g or 1, cols.b or targetName.b or 1)
-						end
-					else
-						local cols = targetName.reactions.bad
-						targetName:SetTextColor(cols.r or targetName.r or 1, cols.g or targetName.g or 1, cols.b or targetName.b or 1)
-					end
+					applyReactionColor(targetName, unitTarget)
 				end
 			else
-				local reactionType = UnitReaction(unitTarget, 'player')
-				if reactionType == 4 then
-					local cols = targetName.reactions.neutral
-					targetName:SetTextColor(cols.r or targetName.r or 1, cols.g or targetName.g or 1, cols.b or targetName.b or 1)
-				elseif reactionType and reactionType > 4 then
-					if UnitIsPlayer(unitTarget) then
-						local cols = targetName.reactions.friendlyPlayer
-						targetName:SetTextColor(cols.r or targetName.r or 1, cols.g or targetName.g or 1, cols.b or targetName.b or 1)
-					else
-						local cols = targetName.reactions.good
-						targetName:SetTextColor(cols.r or targetName.r or 1, cols.g or targetName.g or 1, cols.b or targetName.b or 1)
-					end
-				else
-					local cols = targetName.reactions.bad
-					targetName:SetTextColor(cols.r or targetName.r or 1, cols.g or targetName.g or 1, cols.b or targetName.b or 1)
-				end
-            end
-        ]]
-	elseif config.reactionColor then
-        colorCode = [[
-			local reactionType = UnitReaction(unitTarget, 'player')
-			if reactionType == 4 then
-				local cols = targetName.reactions.neutral
-				targetName:SetTextColor(cols.r or targetName.r or 1, cols.g or targetName.g or 1, cols.b or targetName.b or 1)
-			elseif reactionType and reactionType > 4 then
-				if UnitIsPlayer(unitTarget) then
-					local cols = targetName.reactions.friendlyPlayer
-					targetName:SetTextColor(cols.r or targetName.r or 1, cols.g or targetName.g or 1, cols.b or targetName.b or 1)
-				else
-					local cols = targetName.reactions.good
-					targetName:SetTextColor(cols.r or targetName.r or 1, cols.g or targetName.g or 1, cols.b or targetName.b or 1)
-				end
-			else
-				local cols = targetName.reactions.bad
-				targetName:SetTextColor(cols.r or targetName.r or 1, cols.g or targetName.g or 1, cols.b or targetName.b or 1)
+				applyReactionColor(targetName, unitTarget)
 			end
-        ]]
-	elseif config.classColor then
-        colorCode = [[
-            if UnitIsPlayer(unitTarget) then
+		end
+	elseif useReactionColor then
+		return function(targetName, unitTarget)
+			applyReactionColor(targetName, unitTarget)
+		end
+	elseif useClassColor then
+		return function(targetName, unitTarget)
+			if UnitIsPlayer(unitTarget) then
 				local _, class = UnitClass(unitTarget)
 				if class then
 					local color = _G.CUSTOM_CLASS_COLORS and _G.CUSTOM_CLASS_COLORS[class] or RAID_CLASS_COLORS[class] or {}
@@ -124,175 +91,127 @@ local function generateUpdateFunction(config)
 				end
 			else
 				targetName:SetTextColor(targetName.r or 1, targetName.g or 1, targetName.b or 1)
-            end
-        ]]
-	else
-        colorCode = "targetName:SetTextColor(targetName.r or 1, targetName.g or 1, targetName.b or 1)"
-    end
-
-	if config.separator ~= NONE then
-		if config.abbreviateName then
-			if config.maxLength > 0 then
-				textDisplayCode = format([[
-					local letters, lastWord = "", match(name, ".+%%s(.+)$")
-					local maxLength = %d
-
-					if lastWord then
-						for word in gmatch(name, ".-%%s") do
-							local firstLetter = utf8sub(gsub(word, "^[%%s%%p]*", ""), 1, 1)
-							if firstLetter ~= utf8lower(firstLetter) then
-								letters = format("%%s%%s. ", letters, firstLetter)
-							end
-						end
-						local formattedName = format("%%s%%s", letters, lastWord)
-						if utf8len(formattedName) > maxLength then
-							targetName:SetFormattedText('%s', utf8sub(formattedName, 1, %d) .. "...")
-						else
-							targetName:SetFormattedText('%s', formattedName)
-						end
-					elseif utf8len(name) > maxLength then
-						targetName:SetFormattedText('%s', utf8sub(name, 1, %d) .. "...")
-					else
-						targetName:SetFormattedText('%s', name)
-					end
-				]], config.maxLength, separator, config.maxLength - 3, separator, separator, config.maxLength - 3, separator)
-			else
-				textDisplayCode = format([[
-					local letters, lastWord = "", match(name, ".+%%s(.+)$")
-
-					if lastWord then
-						for word in gmatch(name, ".-%%s") do
-							local firstLetter = utf8sub(gsub(word, "^[%%s%%p]*", ""), 1, 1)
-							if firstLetter ~= utf8lower(firstLetter) then
-								letters = format("%%s%%s. ", letters, firstLetter)
-							end
-						end
-						targetName:SetFormattedText('%s', format("%%s%%s", letters, lastWord))
-					else
-						targetName:SetFormattedText('%s', name)
-					end
-				]], separator, separator)
 			end
-		elseif config.maxLength > 0 then
-			textDisplayCode = format([[
-				local maxLength = %d
-				if utf8len(name) > maxLength then
-					targetName:SetFormattedText('%s', utf8sub(name, 1, %d) .. "...")
-				else
-					targetName:SetFormattedText('%s', name)
-				end
-			]], config.maxLength, separator, config.maxLength - 3, separator)
-		else
-			textDisplayCode = format("targetName:SetFormattedText('%s', name)", separator)
 		end
-	elseif config.abbreviateName then
-		if config.maxLength > 0 then
-			textDisplayCode = format([[
-				local letters, lastWord = "", match(name, ".+%%s(.+)$")
-				local maxLength = %d
+	else
+		return function(targetName)
+			targetName:SetTextColor(targetName.r or 1, targetName.g or 1, targetName.b or 1)
+		end
+	end
+end
 
-				if lastWord then
-					for word in gmatch(name, ".-%%s") do
-						local firstLetter = utf8sub(gsub(word, "^[%%s%%p]*", ""), 1, 1)
-						if firstLetter ~= utf8lower(firstLetter) then
-							letters = format("%%s%%s. ", letters, firstLetter)
-						end
-					end
-					local formattedName = format("%%s%%s", letters, lastWord)
-					if utf8len(formattedName) > maxLength then
-						targetName:SetText(utf8sub(formattedName, 1, %d) .. "...")
+local function abbreviateName(name)
+	local letters, lastWord = "", match(name, ".+%s(.+)$")
+	if lastWord then
+		for word in gmatch(name, ".-%s") do
+			local firstLetter = utf8sub(gsub(word, "^[%s%p]*", ""), 1, 1)
+			if firstLetter ~= utf8lower(firstLetter) then
+				letters = format("%s%s. ", letters, firstLetter)
+			end
+		end
+		return format("%s%s", letters, lastWord)
+	end
+	return name
+end
+
+local function buildTextDisplay(useSeparator, separator, useAbbreviate, maxLen)
+	if useSeparator then
+		if useAbbreviate then
+			if maxLen then
+				local truncLen = maxLen - 3
+				return function(targetName, name)
+					local display = abbreviateName(name)
+					if utf8len(display) > maxLen then
+						targetName:SetFormattedText(separator, utf8sub(display, 1, truncLen) .. "...")
 					else
-						targetName:SetText(formattedName)
+						targetName:SetFormattedText(separator, display)
 					end
-				elseif utf8len(name) > maxLength then
-					targetName:SetText(utf8sub(name, 1, %d) .. "...")
-				else
-					targetName:SetText(name)
 				end
-			]], config.maxLength, config.maxLength - 3, config.maxLength - 3)
-		else
-			textDisplayCode = [[
-				local letters, lastWord = "", match(name, ".+%%s(.+)$")
-
-				if lastWord then
-					for word in gmatch(name, ".-%%s") do
-						local firstLetter = utf8sub(gsub(word, "^[%%s%%p]*", ""), 1, 1)
-						if firstLetter ~= utf8lower(firstLetter) then
-							letters = format("%%s%%s. ", letters, firstLetter)
-						end
-					end
-					targetName:SetText(format("%%s%%s", letters, lastWord))
-				else
-					targetName:SetText(name)
-				end
-			]]
-		end
-	elseif config.maxLength > 0 then
-		textDisplayCode = format([[
-			local maxLength = %d
-			if utf8len(name) > maxLength then
-				targetName:SetText(utf8sub(name, 1, %d) .. "...")
 			else
+				return function(targetName, name)
+					targetName:SetFormattedText(separator, abbreviateName(name))
+				end
+			end
+		elseif maxLen then
+			local truncLen = maxLen - 3
+			return function(targetName, name)
+				if utf8len(name) > maxLen then
+					targetName:SetFormattedText(separator, utf8sub(name, 1, truncLen) .. "...")
+				else
+					targetName:SetFormattedText(separator, name)
+				end
+			end
+		else
+			return function(targetName, name)
+				targetName:SetFormattedText(separator, name)
+			end
+		end
+	else
+		if useAbbreviate then
+			if maxLen then
+				local truncLen = maxLen - 3
+				return function(targetName, name)
+					local display = abbreviateName(name)
+					if utf8len(display) > maxLen then
+						targetName:SetText(utf8sub(display, 1, truncLen) .. "...")
+					else
+						targetName:SetText(display)
+					end
+				end
+			else
+				return function(targetName, name)
+					targetName:SetText(abbreviateName(name))
+				end
+			end
+		elseif maxLen then
+			local truncLen = maxLen - 3
+			return function(targetName, name)
+				if utf8len(name) > maxLen then
+					targetName:SetText(utf8sub(name, 1, truncLen) .. "...")
+				else
+					targetName:SetText(name)
+				end
+			end
+		else
+			return function(targetName, name)
 				targetName:SetText(name)
 			end
-		]], config.maxLength, config.maxLength - 3)
-	else
-		textDisplayCode = "targetName:SetText(name)"
+		end
 	end
+end
 
-    local functionBody = format([[
-		local frame, targetName, unit = ...
+local function generateUpdateFunction(config)
+	local separator = separatorMap[config.separator]
+	local needHighlight = config.highlightSelf or config.highlightOthers
+	local useSeparator = config.separator ~= "NONE"
+	local maxLen = config.maxLength > 0 and config.maxLength or nil
 
-        if unit then
-			local unitTarget = unit..'target'
-            local name = UnitName(unitTarget)
+	local applyColor = buildColorFunction(config.classColor, config.reactionColor)
+	local displayText = buildTextDisplay(useSeparator, separator, config.abbreviateName, maxLen)
 
-            if name and name ~= UNKNOWN then
+	return function(frame, targetName, unit)
+		if unit then
+			local unitTarget = unit .. 'target'
+			local name = UnitName(unitTarget)
+			if name and name ~= UNKNOWN then
 				if targetName.lastName ~= name then
 					targetName.lastName = name
-
-					%s
-					%s
-					%s
-
+					if needHighlight then
+						targetName.isPlayerName = (name == myname)
+					end
+					applyColor(targetName, unitTarget)
+					displayText(targetName, name)
 					targetName:Show()
 				end
 			elseif targetName.lastName then
 				targetName.lastName = nil
 				targetName:Hide()
-            end
-        elseif targetName.lastName then
+			end
+		elseif targetName.lastName then
 			targetName.lastName = nil
-            targetName:Hide()
-        end
-    ]], highlightCode or "", colorCode, textDisplayCode)
-
-    local luaFunction, errorMsg = loadstring(functionBody)
-
-    if not luaFunction then
-        core:print('LUA', L["Targets"], errorMsg)
-        return function() end
-    end
-
-	setfenv(luaFunction, {
-		_G = _G,
-		UnitName = UnitName,
-		UnitClass = UnitClass,
-		UnitReaction = UnitReaction,
-		UnitIsPlayer = UnitIsPlayer,
-		RAID_CLASS_COLORS = RAID_CLASS_COLORS,
-		UNKNOWN = UNKNOWN,
-		match = match,
-		gmatch = gmatch,
-		format = format,
-		gsub = gsub,
-		utf8sub = utf8sub,
-		utf8lower = utf8lower,
-		utf8len = utf8len,
-		myname = myname,
-	})
-
-    return luaFunction
+			targetName:Hide()
+		end
+	end
 end
 
 
@@ -936,324 +855,49 @@ function mod:SetupHighlight(f, holder, data)
 			f.highlight:SetAllPoints(f)
 		end
 	end
+
+	local function applyHighlight(fs)
+		local isSelf = fs.isPlayerName
+		local active = (isSelf and data.highlightSelf) or (not isSelf and data.highlightOthers)
+		if not active then
+			fs.highlight:Hide()
+			holder:SetScale(1)
+			return
+		end
+
+		local inherit, texture, scale, cr, cg, cb
+		if isSelf then
+			inherit = data.highlightSelfInheritColor
+			texture = fs.highlightSelfTexture
+			scale = fs.highlightSelfScale
+			cr, cg, cb = fs.highlightSelfR, fs.highlightSelfG, fs.highlightSelfB
+		else
+			inherit = data.highlightOthersInheritColor
+			texture = fs.highlightOthersTexture
+			scale = fs.highlightOthersScale
+			cr, cg, cb = fs.highlightOthersR, fs.highlightOthersG, fs.highlightOthersB
+		end
+
+		if inherit then
+			fs.highlight:SetVertexColor(fs:GetTextColor())
+		else
+			fs.highlight:SetVertexColor(cr, cg, cb)
+		end
+
+		if find(texture, "%S+") then
+			fs.highlight:SetTexture(texture)
+		else
+			fs.highlight:SetTexture(nil)
+		end
+
+		holder:SetScale(scale)
+		fs.highlight:Show()
+	end
+
 	for _, func in ipairs({"SetText", "SetFormattedText"}) do
 		if self:IsHooked(f, func) then self:Unhook(f, func) end
-		if data.highlightOthers and data.highlightSelf then
-			if data.highlightOthersInheritColor and data.highlightSelfInheritColor then
-				if find(f.highlightSelfTexture, "%S+") and find(f.highlightOthersTexture, "%S+") then
-					self:SecureHook(f, func, function(fs)
-						if fs.isPlayerName then
-							fs.highlight:SetVertexColor(fs:GetTextColor())
-							fs.highlight:SetTexture(fs.highlightSelfTexture)
-							holder:SetScale(fs.highlightSelfScale)
-						else
-							fs.highlight:SetVertexColor(fs:GetTextColor())
-							fs.highlight:SetTexture(fs.highlightOthersTexture)
-							holder:SetScale(fs.highlightOthersScale)
-						end
-						fs.highlight:Show()
-					end)
-				elseif find(f.highlightSelfTexture, "%S+") then
-					self:SecureHook(f, func, function(fs)
-						if fs.isPlayerName then
-							fs.highlight:SetVertexColor(fs:GetTextColor())
-							fs.highlight:SetTexture(fs.highlightSelfTexture)
-							holder:SetScale(fs.highlightSelfScale)
-						else
-							fs.highlight:SetVertexColor(fs:GetTextColor())
-							fs.highlight:SetTexture(nil)
-							holder:SetScale(fs.highlightOthersScale)
-						end
-						fs.highlight:Show()
-					end)
-				elseif find(f.highlightOthersTexture, "%S+") then
-					self:SecureHook(f, func, function(fs)
-						if fs.isPlayerName then
-							fs.highlight:SetVertexColor(fs:GetTextColor())
-							fs.highlight:SetTexture(nil)
-							holder:SetScale(fs.highlightSelfScale)
-						else
-							fs.highlight:SetVertexColor(fs:GetTextColor())
-							fs.highlight:SetTexture(fs.highlightOthersTexture)
-							holder:SetScale(fs.highlightOthersScale)
-						end
-						fs.highlight:Show()
-					end)
-				else
-					f.highlight:SetTexture(nil)
-					self:SecureHook(f, func, function(fs)
-						if fs.isPlayerName then
-							fs.highlight:SetVertexColor(fs:GetTextColor())
-							holder:SetScale(fs.highlightSelfScale)
-						else
-							fs.highlight:SetVertexColor(fs:GetTextColor())
-							holder:SetScale(fs.highlightOthersScale)
-						end
-						fs.highlight:Show()
-					end)
-				end
-			elseif data.highlightOthersInheritColor then
-				if find(f.highlightSelfTexture, "%S+") and find(f.highlightOthersTexture, "%S+") then
-					self:SecureHook(f, func, function(fs)
-						if fs.isPlayerName then
-							fs.highlight:SetVertexColor(fs.highlightSelfR, fs.highlightSelfG, fs.highlightSelfB)
-							fs.highlight:SetTexture(fs.highlightSelfTexture)
-							holder:SetScale(fs.highlightSelfScale)
-						else
-							fs.highlight:SetVertexColor(fs:GetTextColor())
-							fs.highlight:SetTexture(fs.highlightOthersTexture)
-							holder:SetScale(fs.highlightOthersScale)
-						end
-						fs.highlight:Show()
-					end)
-				elseif find(f.highlightSelfTexture, "%S+") then
-					self:SecureHook(f, func, function(fs)
-						if fs.isPlayerName then
-							fs.highlight:SetVertexColor(fs.highlightSelfR, fs.highlightSelfG, fs.highlightSelfB)
-							fs.highlight:SetTexture(fs.highlightSelfTexture)
-							holder:SetScale(fs.highlightSelfScale)
-						else
-							fs.highlight:SetVertexColor(fs:GetTextColor())
-							fs.highlight:SetTexture(nil)
-							holder:SetScale(fs.highlightOthersScale)
-						end
-						fs.highlight:Show()
-					end)
-				elseif find(f.highlightOthersTexture, "%S+") then
-					self:SecureHook(f, func, function(fs)
-						if fs.isPlayerName then
-							fs.highlight:SetVertexColor(fs.highlightSelfR, fs.highlightSelfG, fs.highlightSelfB)
-							fs.highlight:SetTexture(nil)
-							holder:SetScale(fs.highlightSelfScale)
-						else
-							fs.highlight:SetVertexColor(fs:GetTextColor())
-							fs.highlight:SetTexture(fs.highlightOthersTexture)
-							holder:SetScale(fs.highlightOthersScale)
-						end
-						fs.highlight:Show()
-					end)
-				else
-					f.highlight:SetTexture(nil)
-					self:SecureHook(f, func, function(fs)
-						if fs.isPlayerName then
-							fs.highlight:SetVertexColor(fs.highlightSelfR, fs.highlightSelfG, fs.highlightSelfB)
-							holder:SetScale(fs.highlightSelfScale)
-						else
-							fs.highlight:SetVertexColor(fs:GetTextColor())
-							holder:SetScale(fs.highlightOthersScale)
-						end
-						fs.highlight:Show()
-					end)
-				end
-			elseif data.highlightSelfInheritColor then
-				if find(f.highlightSelfTexture, "%S+") and find(f.highlightOthersTexture, "%S+") then
-					self:SecureHook(f, func, function(fs)
-						if fs.isPlayerName then
-							fs.highlight:SetVertexColor(fs:GetTextColor())
-							fs.highlight:SetTexture(fs.highlightSelfTexture)
-							holder:SetScale(fs.highlightSelfScale)
-						else
-							fs.highlight:SetVertexColor(fs.highlightOthersR, fs.highlightOthersG, fs.highlightOthersB)
-							fs.highlight:SetTexture(fs.highlightOthersTexture)
-							holder:SetScale(fs.highlightOthersScale)
-						end
-						fs.highlight:Show()
-					end)
-				elseif find(f.highlightSelfTexture, "%S+") then
-					self:SecureHook(f, func, function(fs)
-						if fs.isPlayerName then
-							fs.highlight:SetVertexColor(fs:GetTextColor())
-							fs.highlight:SetTexture(fs.highlightSelfTexture)
-							holder:SetScale(fs.highlightSelfScale)
-						else
-							fs.highlight:SetVertexColor(fs.highlightOthersR, fs.highlightOthersG, fs.highlightOthersB)
-							fs.highlight:SetTexture(nil)
-							holder:SetScale(fs.highlightOthersScale)
-						end
-						fs.highlight:Show()
-					end)
-				elseif find(f.highlightOthersTexture, "%S+") then
-					self:SecureHook(f, func, function(fs)
-						if fs.isPlayerName then
-							fs.highlight:SetVertexColor(fs:GetTextColor())
-							fs.highlight:SetTexture(nil)
-							holder:SetScale(fs.highlightSelfScale)
-						else
-							fs.highlight:SetVertexColor(fs.highlightOthersR, fs.highlightOthersG, fs.highlightOthersB)
-							fs.highlight:SetTexture(fs.highlightOthersTexture)
-							holder:SetScale(fs.highlightOthersScale)
-						end
-						fs.highlight:Show()
-					end)
-				else
-					f.highlight:SetTexture(nil)
-					self:SecureHook(f, func, function(fs)
-						if fs.isPlayerName then
-							fs.highlight:SetVertexColor(fs:GetTextColor())
-							holder:SetScale(fs.highlightSelfScale)
-						else
-							fs.highlight:SetVertexColor(fs.highlightOthersR, fs.highlightOthersG, fs.highlightOthersB)
-							holder:SetScale(fs.highlightOthersScale)
-						end
-						fs.highlight:Show()
-					end)
-				end
-			else
-				if find(f.highlightSelfTexture, "%S+") and find(f.highlightOthersTexture, "%S+") then
-					self:SecureHook(f, func, function(fs)
-						if fs.isPlayerName then
-							fs.highlight:SetVertexColor(fs.highlightSelfR, fs.highlightSelfG, fs.highlightSelfB)
-							fs.highlight:SetTexture(fs.highlightSelfTexture)
-							holder:SetScale(fs.highlightSelfScale)
-						else
-							fs.highlight:SetVertexColor(fs.highlightOthersR, fs.highlightOthersG, fs.highlightOthersB)
-							fs.highlight:SetTexture(fs.highlightOthersTexture)
-							holder:SetScale(fs.highlightOthersScale)
-						end
-						fs.highlight:Show()
-					end)
-				elseif find(f.highlightSelfTexture, "%S+") then
-					self:SecureHook(f, func, function(fs)
-						if fs.isPlayerName then
-							fs.highlight:SetVertexColor(fs.highlightSelfR, fs.highlightSelfG, fs.highlightSelfB)
-							fs.highlight:SetTexture(fs.highlightSelfTexture)
-							holder:SetScale(fs.highlightSelfScale)
-						else
-							fs.highlight:SetVertexColor(fs.highlightOthersR, fs.highlightOthersG, fs.highlightOthersB)
-							fs.highlight:SetTexture(nil)
-							holder:SetScale(fs.highlightOthersScale)
-						end
-						fs.highlight:Show()
-					end)
-				elseif find(f.highlightOthersTexture, "%S+") then
-					self:SecureHook(f, func, function(fs)
-						if fs.isPlayerName then
-							fs.highlight:SetVertexColor(fs.highlightSelfR, fs.highlightSelfG, fs.highlightSelfB)
-							fs.highlight:SetTexture(nil)
-							holder:SetScale(fs.highlightSelfScale)
-						else
-							fs.highlight:SetVertexColor(fs.highlightOthersR, fs.highlightOthersG, fs.highlightOthersB)
-							fs.highlight:SetTexture(fs.highlightOthersTexture)
-							holder:SetScale(fs.highlightOthersScale)
-						end
-						fs.highlight:Show()
-					end)
-				else
-					f.highlight:SetTexture(nil)
-					self:SecureHook(f, func, function(fs)
-						if fs.isPlayerName then
-							fs.highlight:SetVertexColor(fs.highlightSelfR, fs.highlightSelfG, fs.highlightSelfB)
-							holder:SetScale(fs.highlightSelfScale)
-						else
-							fs.highlight:SetVertexColor(fs.highlightOthersR, fs.highlightOthersG, fs.highlightOthersB)
-							holder:SetScale(fs.highlightOthersScale)
-						end
-						fs.highlight:Show()
-					end)
-				end
-			end
-		elseif data.highlightSelf then
-			if data.highlightSelfInheritColor then
-				self:SecureHook(f, func, function(fs)
-					if find(f.highlightSelfTexture, "%S+") then
-						if fs.isPlayerName then
-							fs.highlight:SetVertexColor(fs:GetTextColor())
-							fs.highlight:SetTexture(fs.highlightSelfTexture)
-							fs.highlight:Show()
-							holder:SetScale(fs.highlightSelfScale)
-						else
-							fs.highlight:Hide()
-							holder:SetScale(1)
-						end
-					else
-						fs.highlight:SetTexture(nil)
-						if fs.isPlayerName then
-							fs.highlight:SetVertexColor(fs:GetTextColor())
-							fs.highlight:Show()
-							holder:SetScale(fs.highlightSelfScale)
-						else
-							fs.highlight:Hide()
-							holder:SetScale(1)
-						end
-					end
-				end)
-			elseif find(f.highlightSelfTexture, "%S+") then
-				self:SecureHook(f, func, function(fs)
-					if fs.isPlayerName then
-						fs.highlight:SetVertexColor(fs.highlightSelfR, fs.highlightSelfG, fs.highlightSelfB)
-						fs.highlight:SetTexture(fs.highlightSelfTexture)
-						fs.highlight:Show()
-						holder:SetScale(fs.highlightSelfScale)
-					else
-						fs.highlight:Hide()
-						holder:SetScale(1)
-					end
-				end)
-			else
-				f.highlight:SetTexture(nil)
-				self:SecureHook(f, func, function(fs)
-					if fs.isPlayerName then
-						fs.highlight:SetVertexColor(fs.highlightSelfR, fs.highlightSelfG, fs.highlightSelfB)
-						fs.highlight:Show()
-						holder:SetScale(fs.highlightSelfScale)
-					else
-						fs.highlight:Hide()
-						holder:SetScale(1)
-					end
-				end)
-			end
-		elseif data.highlightOthers then
-			if data.highlightOthersInheritColor then
-				if find(f.highlightOthersTexture, "%S+") then
-					self:SecureHook(f, func, function(fs)
-						if fs.isPlayerName then
-							fs.highlight:Hide()
-							holder:SetScale(1)
-						else
-							fs.highlight:SetVertexColor(fs:GetTextColor())
-							fs.highlight:SetTexture(fs.highlightOthersTexture)
-							fs.highlight:Show()
-							holder:SetScale(fs.highlightOthersScale)
-						end
-					end)
-				else
-					f.highlight:SetTexture(nil)
-					self:SecureHook(f, func, function(fs)
-						if fs.isPlayerName then
-							fs.highlight:Hide()
-							holder:SetScale(1)
-						else
-							fs.highlight:SetVertexColor(fs:GetTextColor())
-							fs.highlight:Show()
-							holder:SetScale(fs.highlightOthersScale)
-						end
-					end)
-				end
-			elseif find(f.highlightOthersTexture, "%S+") then
-				self:SecureHook(f, func, function(fs)
-					if fs.isPlayerName then
-						fs.highlight:Hide()
-						holder:SetScale(1)
-					else
-						fs.highlight:SetVertexColor(fs.highlightOthersR, fs.highlightOthersG, fs.highlightOthersB)
-						fs.highlight:SetTexture(fs.highlightOthersTexture)
-						fs.highlight:Show()
-						holder:SetScale(fs.highlightOthersScale)
-					end
-				end)
-			else
-				f.highlight:SetTexture(nil)
-				self:SecureHook(f, func, function(fs)
-					if fs.isPlayerName then
-						fs.highlight:Hide()
-						holder:SetScale(1)
-					else
-						fs.highlight:SetVertexColor(fs.highlightOthersR, fs.highlightOthersG, fs.highlightOthersB)
-						fs.highlight:Show()
-						holder:SetScale(fs.highlightOthersScale)
-					end
-				end)
-			end
+		if data.highlightSelf or data.highlightOthers then
+			self:SecureHook(f, func, applyHighlight)
 		elseif f.highlight then
 			f.highlight:Hide()
 			f.highlightSelfScale = nil
@@ -1321,6 +965,7 @@ function mod:SetScripts(handler, data, unitType)
 	local plates = frames[unitType]
 
 	handler:SetScript("OnUpdate", function(_, elapsed)
+		if not next(plates) then return end
 		timeElapsed = timeElapsed + elapsed
 		if timeElapsed > throttle then
 			timeElapsed = 0
@@ -1410,35 +1055,29 @@ function mod:Toggle(db, visibilityUpdate)
 						end
 					end)
 				end
-				if not self:IsHooked(NP, "UPDATE_MOUSEOVER_UNIT") then
-					local function setMouseoverHook()
-						if not self:IsHooked(NP, "SetMouseoverFrame") then
-							self:SecureHook(NP, "SetMouseoverFrame", function(_, frame)
-								if frame.isMouseover then
-									self:Unhook(NP, "SetMouseoverFrame")
-									local unitType = frame.UnitType
-									local targetName = frame.targetNames[unitType]
-									if targetName then
-										self:UpdateName(frame, unitType, nil, "mouseover")
-										self:SecureHook(NP, "SetMouseoverFrame", function(_, f)
-											if f == frame then
-												if not frame.isMouseover then
-													self:Unhook(NP, "SetMouseoverFrame")
-													self:UpdateName(frame, unitType)
-													if UnitExists("mouseover") then
-														setMouseoverHook()
-													end
-												elseif targetName.lastName ~= UnitName("mouseovertarget") then
-													self:UpdateName(frame, unitType, nil, "mouseover")
-												end
-											end
-										end)
-									end
+				if not self:IsHooked(NP, "SetMouseoverFrame") then
+					local mouseoverFrame = nil
+					self:SecureHook(NP, "SetMouseoverFrame", function(_, frame)
+						if frame.isMouseover then
+							if mouseoverFrame ~= frame then
+								mouseoverFrame = frame
+								local unitType = frame.UnitType
+								if frame.targetNames and frame.targetNames[unitType] then
+									self:UpdateName(frame, unitType, nil, "mouseover")
 								end
-							end)
+							else
+								local unitType = frame.UnitType
+								local targetName = frame.targetNames and frame.targetNames[unitType]
+								if targetName and targetName.lastName ~= UnitName("mouseovertarget") then
+									self:UpdateName(frame, unitType, nil, "mouseover")
+								end
+							end
+						elseif frame == mouseoverFrame then
+							mouseoverFrame = nil
+							local unitType = frame.UnitType
+							self:UpdateName(frame, unitType)
 						end
-					end
-					self:SecureHook(NP, "UPDATE_MOUSEOVER_UNIT", setMouseoverHook)
+					end)
 				end
 				self:RegisterEvent("UNIT_TARGET", function(_, unit)
 					if unit ~= "player" then
@@ -1470,7 +1109,7 @@ function mod:Toggle(db, visibilityUpdate)
 			end)
 		else
 			self:UnregisterEvent("UNIT_TARGET")
-			for _, func in ipairs({"UPDATE_MOUSEOVER_UNIT", "SetMouseoverFrame", "Construct_Name",
+			for _, func in ipairs({"SetMouseoverFrame", "Construct_Name",
 									"CacheGroupUnits", "OnShow", "Update_CPoints", "UpdateElement_All"}) do
 				if self:IsHooked(NP, func) then self:Unhook(NP, func) end
 			end
