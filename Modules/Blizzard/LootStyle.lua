@@ -896,8 +896,10 @@ function mod:StyledMsgs(db)
 		if not self:IsHooked(M, "UpdateBubbleBorder") then
 			self:SecureHook(M, "UpdateBubbleBorder", function(self)
 				if not self.text then return end
+				local text = self.text:GetText()
+				if not text then return end
+
 				if E.private.general.chatBubbles == "backdrop" then
-					local text = self.text:GetText()
 					local name = messageToSender[text]
 					if not name then return end
 					local rel = mod:GetPlayerRelationship(lower(name))
@@ -915,7 +917,7 @@ function mod:StyledMsgs(db)
 						messageToSender[text] = nil
 					end
 				end
-				local msg = mod:StyleMessage(self.text:GetText())
+				local msg = mod:StyleMessage(text)
 				self.text:SetText(msg)
 			end)
 		end
