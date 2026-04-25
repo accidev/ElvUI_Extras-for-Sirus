@@ -3,7 +3,7 @@ local core = E:GetModule("Extras")
 local mod = core:NewModule("NPMisc.", "AceHook-3.0")
 local NP = E:GetModule("NamePlates")
 
-local isAwesome = C_NamePlate
+local isAwesome = false
 local modName = mod:GetName()
 mod.initialized = {}
 

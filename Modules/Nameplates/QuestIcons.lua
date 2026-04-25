@@ -5,7 +5,7 @@ local NP = E:GetModule("NamePlates")
 local LSM = E.Libs.LSM
 
 local modName = mod:GetName()
-local isAwesome = C_NamePlate
+local isAwesome = false
 
 mod.initialized = false
 

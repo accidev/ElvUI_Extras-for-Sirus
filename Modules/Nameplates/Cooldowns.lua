@@ -9,7 +9,7 @@ local modName = mod:GetName()
 local activeCooldowns, testing = {}, false
 local highlightedSpells = {["ENEMY_PLAYER"] = {}, ["FRIENDLY_PLAYER"] = {}}
 local edgeFile = LSM:Fetch("border", "ElvUI GlowBorder")
-local isAwesome = C_NamePlate
+local isAwesome = false
 
 local band = bit.band
 local _G, pairs, ipairs, select, unpack, next = _G, pairs, ipairs, select, unpack, next

@@ -305,7 +305,7 @@ core.SpellLists = {
 
 
 local AddOnName = ...
-local isAwesome = C_NamePlate and E.private.nameplates.enable
+local isAwesome = false
 local printing = false
 
 local nameUpdates = core.nameUpdates

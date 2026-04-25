@@ -25,7 +25,7 @@ local dataTexMapDefaults = {
 	[BARBERSHOP							] = "Interface\\GossipFrame\\HealerGossipIcon",
 }
 
-local isAwesome = C_NamePlate
+local isAwesome = false
 local GetNamePlateForUnit = isAwesome and C_NamePlate.GetNamePlateForUnit
 
 mod.initialized = false

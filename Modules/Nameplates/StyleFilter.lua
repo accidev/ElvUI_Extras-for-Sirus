@@ -5,7 +5,7 @@ local NP = E:GetModule("NamePlates")
 
 local modName = mod:GetName()
 local activeFilters, links, customChecks = {}, {}, {}
-local isAwesome = C_NamePlate
+local isAwesome = false
 
 mod.initialized = false
 mod.customChecks = customChecks

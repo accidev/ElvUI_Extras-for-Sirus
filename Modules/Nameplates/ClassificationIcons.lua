@@ -4,7 +4,7 @@ local mod = core:NewModule("ClassificationIcons", "AceHook-3.0")
 local NP = E:GetModule("NamePlates")
 
 local modName = mod:GetName()
-local isAwesome = C_NamePlate
+local isAwesome = false
 
 mod.initialized = false
 
