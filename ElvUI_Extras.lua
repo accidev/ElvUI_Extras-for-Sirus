@@ -667,9 +667,6 @@ if isAwesome then
 		if isTargetUnit then
 			if not frame.isTarget then
 				frame.isTarget = true
-				if NP.db.useTargetScale then
-					NP:SetFrameScale(frame, (frame.ThreatScale or 1) * NP.db.targetScale)
-				end
 				if not healthEnabled[frame.UnitType] and NP.db.alwaysShowTargetHealth then
 					frame.Health.r, frame.Health.g, frame.Health.b = nil, nil, nil
 					NP:Configure_HealthBar(frame)
@@ -688,9 +685,6 @@ if isAwesome then
 		else
 			if frame.isTarget then
 				frame.isTarget = nil
-				if NP.db.useTargetScale then
-					NP:SetFrameScale(frame, (frame.ThreatScale or 1))
-				end
 				if not healthEnabled[frame.UnitType] then
 					NP:UpdateAllFrame(frame, nil, true)
 				end
