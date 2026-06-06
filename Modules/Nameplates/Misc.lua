@@ -25,8 +25,8 @@ function mod:updateVisibilityState(db, areaType)
 						self.hooks[NP].OnShow(plate, ...)
 					end
 				end
-				for _, func in ipairs({'Configure_CPoints', 'Update_HealthBar', 'Update_Highlight', 'Update_Name', 'UpdateElement_All',
-										'RegisterEvents', 'SetTargetFrame', 'StyleFilterClearChanges', 'StyleFilterPass'}) do
+				for _, func in ipairs({'Update_Health', 'Update_Highlight', 'Update_Name', 'UpdateElement_All',
+										'StyleFilterClearChanges', 'StyleFilterPass'}) do
 					if self:IsHooked(NP, func) then
 						self:Unhook(NP, func)
 					end
@@ -43,8 +43,8 @@ function mod:updateVisibilityState(db, areaType)
 					self.hooks[NP].OnShow(plate, ...)
 				end
 				if not self:IsHooked(NP, "OnShow") then self:RawHook(NP, "OnShow") end
-				for _, func in ipairs({'Configure_CPoints', 'Update_HealthBar', 'Update_Highlight', 'Update_Name', 'UpdateElement_All',
-										'RegisterEvents', 'SetTargetFrame', 'StyleFilterClearChanges', 'StyleFilterPass'}) do
+				for _, func in ipairs({'Update_Health', 'Update_Highlight', 'Update_Name', 'UpdateElement_All',
+										'StyleFilterClearChanges', 'StyleFilterPass'}) do
 					self:Unhook(NP, func)
 					self:RawHook(NP, func, function(s, frame, ...)
 						local unitType = frame.UnitType or select(2,NP:GetUnitInfo(frame))
@@ -66,8 +66,8 @@ function mod:updateVisibilityState(db, areaType)
 					self.hooks[NP].OnShow(plate, ...)
 				end
 				if not self:IsHooked(NP, "OnShow") then self:RawHook(NP, "OnShow") end
-				for _, func in ipairs({'Configure_CPoints', 'Update_HealthBar', 'Update_Highlight', 'Update_Name', 'UpdateElement_All',
-										'RegisterEvents', 'SetTargetFrame', 'StyleFilterClearChanges', 'StyleFilterPass'}) do
+				for _, func in ipairs({'Update_Health', 'Update_Highlight', 'Update_Name', 'UpdateElement_All',
+										'StyleFilterClearChanges', 'StyleFilterPass'}) do
 					self:Unhook(NP, func)
 					self:RawHook(NP, func, function(s, frame, ...)
 						local unitType = frame.UnitType or select(2,NP:GetUnitInfo(frame))
@@ -216,8 +216,9 @@ function mod:LoadConfig(db)
 								testing = false
 								for plate in pairs(NP.CreatedPlates) do
 									local frame = plate.UnitFrame
-									if self:IsHooked(frame.HealerIcon, "Hide") then
-										self:Unhook(frame.HealerIcon, "Hide")
+									local icon = frame.HealerIcon
+									if icon and self:IsHooked(icon, "Hide") then
+										self:Unhook(icon, "Hide")
 									end
 									if frame:IsShown() then
 										NP:Update_HealerIcon(frame)
@@ -279,8 +280,9 @@ function mod:LoadConfig(db)
 							if testing then
 								for plate in pairs(NP.CreatedPlates) do
 									local frame = plate.UnitFrame
-									if not self:IsHooked(frame.HealerIcon, "Hide") then
-										self:SecureHook(frame.HealerIcon, "Hide", function(icon)
+									local icon = frame.HealerIcon
+									if icon and not self:IsHooked(icon, "Hide") then
+										self:SecureHook(icon, "Hide", function(icon)
 											icon:Show()
 										end)
 									end
@@ -291,8 +293,9 @@ function mod:LoadConfig(db)
 							else
 								for plate in pairs(NP.CreatedPlates) do
 									local frame = plate.UnitFrame
-									if self:IsHooked(frame.HealerIcon, "Hide") then
-										self:Unhook(frame.HealerIcon, "Hide")
+									local icon = frame.HealerIcon
+									if icon and self:IsHooked(icon, "Hide") then
+										self:Unhook(icon, "Hide")
 									end
 									if frame:IsShown() then
 										NP:Update_HealerIcon(frame)
@@ -355,13 +358,16 @@ function mod:Toggle(db)
 		local vals = db.healerIcon
 		if not self:IsHooked(NP, "Construct_CPoints") then
 			self:SecureHook(NP, "Construct_CPoints", function(_, frame)
-				frame.HealerIcon:Size(vals.size)
+				local icon = frame.HealerIcon
+				if icon then
+					icon:Size(vals.size)
+				end
 			end)
 		end
 		if not self:IsHooked(NP, "Update_HealerIcon") then
 			self:SecureHook(NP, "Update_HealerIcon", function(_, frame)
 				local icon = frame.HealerIcon
-				if icon:IsShown() then
+				if icon and icon:IsShown() then
 					icon:ClearAllPoints()
 					icon:Point(vals.point, frame.Health:IsShown() and frame.Health or frame.Name, vals.relativeTo, vals.xOffset, vals.yOffset)
 				end
@@ -446,8 +452,8 @@ function mod:Toggle(db)
 				self.hooks[NP].OnShow(plate, ...)
 			end
 		end
-		for _, func in ipairs({'Configure_CPoints', 'Update_HealthBar', 'Update_Highlight', 'Update_Name', 'UpdateElement_All',
-								'RegisterEvents', 'SetTargetFrame', 'StyleFilterClearChanges', 'StyleFilterPass'}) do
+		for _, func in ipairs({'Update_Health', 'Update_Highlight', 'Update_Name', 'UpdateElement_All',
+								'StyleFilterClearChanges', 'StyleFilterPass'}) do
 			if self:IsHooked(NP, func) then
 				self:Unhook(NP, func)
 			end

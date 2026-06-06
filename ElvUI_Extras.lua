@@ -14,15 +14,7 @@ core.areaUpdates = {}
 core.frameUpdates = {}
 core.taggedFrames = {}
 core.healthEnabled = {}
-core.plateAnchoring = {
-	["Elite"] = function(unitType, frame, element)
-		if unitType == "ENEMY_NPC" or unitType == "FRIENDLY_NPC" then
-			local points = NP.db.units[unitType].eliteIcon
-			frame.Elite:ClearAllPoints()
-			frame.Elite:Point(points.position, element, points.xOffset, points.yOffset)
-		end
-	end
-}
+core.plateAnchoring = {}
 
 core.PurgeList = {
 	MAGE = true,
@@ -873,29 +865,129 @@ function core:OnShowHide(frame, health)
 end
 
 
-core:SecureHook(NP, "OnCreated", function(_, plate)
-	local frame = plate.UnitFrame
-	local health = frame.Health
-	core:SecureHookScript(health, "OnShow", function(self)
-		core:OnShowHide(frame, self)
+do
+	local CreatedPlates = {}
+	local VisiblePlates = {}
+	NP.CreatedPlates = CreatedPlates
+	NP.VisiblePlates = VisiblePlates
+
+	local function syncFields(frame)
+		frame.UnitFrame = frame
+		frame.UnitType = frame.frameType
+		frame.UnitName = frame.unitName
+		frame.UnitClass = frame.classFile
+		frame.UnitReaction = frame.reaction
+	end
+
+	local function unitTypeFromUnit(unit)
+		if not unit then return end
+		local reaction = UnitReaction("player", unit)
+		local isPlayer = UnitIsPlayer(unit)
+		if reaction and reaction >= 5 then
+			return isPlayer and "FRIENDLY_PLAYER" or "FRIENDLY_NPC"
+		elseif reaction == 4 then
+			return UnitCanAttack("player", unit) and "ENEMY_NPC" or "FRIENDLY_NPC"
+		elseif not isPlayer then
+			return "ENEMY_NPC"
+		else
+			return "ENEMY_PLAYER"
+		end
+	end
+
+	function NP:GetUnitInfo(frame)
+		return frame.reaction, frame.frameType
+	end
+
+	function NP:GetUnitByName(frame)
+		return frame.unit
+	end
+
+	function NP:GetUnitTypeFromUnit(unit)
+		return unitTypeFromUnit(unit)
+	end
+
+	function NP:ForEachVisiblePlate(method, ...)
+		if type(method) == "string" then
+			local fn = NP[method]
+			if not fn then return end
+			for frame in pairs(VisiblePlates) do
+				fn(NP, frame, ...)
+			end
+		else
+			for frame in pairs(VisiblePlates) do
+				method(frame, ...)
+			end
+		end
+	end
+
+	function NP:UpdateAllFrame(frame)
+		if frame and frame.UpdateAllElements then
+			frame:UpdateAllElements("ForceUpdate")
+		end
+	end
+
+	function NP:SearchNameplateByGUID(guid)
+		return (guid and NP.PlateGUID[guid]) or nil
+	end
+
+	function NP:OnCreated(plate) end
+	function NP:OnShow(plate) end
+	function NP:OnHide(plate) end
+	function NP:UpdateElement_All(plate) end
+	function NP:SetMouseoverFrame(plate) end
+	function NP:CacheGroupUnits() end
+	function NP:Update_CPoints(plate) end
+	function NP:Construct_CPoints(plate) end
+	function NP:Update_HealerIcon(plate) end
+
+	local function anchorElement(frame)
+		return ((frame.IsElementEnabled and frame:IsElementEnabled("Health")) and frame.Health) or nil
+	end
+
+	hooksecurefunc(NP, "StylePlate", function(_, nameplate)
+		if nameplate:GetName() == "ElvNP_Test" then return end
+		syncFields(nameplate)
+		CreatedPlates[nameplate] = nameplate
+		NP:OnCreated(nameplate)
 	end)
-	core:SecureHookScript(health, "OnHide", function()
-		if frame:IsVisible() then
-			core:OnShowHide(frame)
+
+	hooksecurefunc(NP, "NamePlateCallBack", function(_, nameplate, event, unit)
+		if not nameplate or nameplate == NP.TestFrame or not nameplate.UpdateAllElements then return end
+		if event == "NAME_PLATE_UNIT_ADDED" then
+			if not CreatedPlates[nameplate] then
+				CreatedPlates[nameplate] = nameplate
+				NP:OnCreated(nameplate)
+			end
+			syncFields(nameplate)
+			VisiblePlates[nameplate] = nameplate
+			NP.OnShow(nameplate)
+			core:OnShowHide(nameplate, anchorElement(nameplate))
+		elseif event == "NAME_PLATE_UNIT_REMOVED" then
+			VisiblePlates[nameplate] = nil
+			NP.OnHide(nameplate)
+		elseif event == "UNIT_FACTION" then
+			syncFields(nameplate)
+			core:OnShowHide(nameplate, anchorElement(nameplate))
 		end
 	end)
-end)
 
-core:SecureHook(NP, "Configure_Elite", function(_, frame)
-	local unitType = frame.UnitType
-	local db = unitType and NP.db.units[unitType].eliteIcon
+	hooksecurefunc(NP, "UpdatePlate", function(_, nameplate)
+		if nameplate and VisiblePlates[nameplate] then
+			NP:UpdateElement_All(nameplate)
+			core:OnShowHide(nameplate, anchorElement(nameplate))
+		end
+	end)
 
-	if db then
-		local icon = frame.Elite
-		icon:ClearAllPoints()
-		icon:Point(db.position, healthEnabled[unitType] and frame.Health or frame.Name, db.xOffset, db.yOffset)
-	end
-end)
+	core:RegisterEvent("UPDATE_MOUSEOVER_UNIT", function()
+		for frame in pairs(VisiblePlates) do
+			NP:SetMouseoverFrame(frame)
+		end
+	end)
+
+	core:RegisterEvent("GROUP_ROSTER_UPDATE", function()
+		NP:CacheGroupUnits()
+	end)
+end
 
 
 function core:AggregateUnitFrames()
@@ -2027,7 +2119,8 @@ function core:Initialize()
 	EP:RegisterPlugin(AddOnName, self.GetOptions)
 
 	for _, module in pairs(self.modules) do
-        module()
+        local ok, err = pcall(module)
+        if not ok then geterrorhandler()(err) end
     end
 
 	self:SecureHook(E, "SetMoversClampedToScreen", function(_, toggle)

@@ -480,7 +480,7 @@ local function cache(db, visibilityUpdate)
 					else
 						mod:HandlePets(plate, plate.UnitName)
 					end
-				else
+				elseif tracker then
 					tracker:Hide()
 				end
 			elseif tracker then
@@ -1204,11 +1204,13 @@ function mod:UpdateCooldowns(playerName, spellID, startTime, endTime, isPlayer)
 end
 
 function mod:HandlePets(plate, petName, unit)
-	local ownerName = getPetOwner(plate.unit or plate:GetParent().unit or unit or petName)
+	local parent = plate:GetParent()
+	local ownerName = getPetOwner(plate.unit or (parent and parent.unit) or unit or petName)
 	if ownerName then
 		local hash = ownerName..'true'
 		local cooldowns = activeCooldowns[hash]
 		local petCooldowns = activeCooldowns[petName..'false']
+		if not petCooldowns then return end
 		if not cooldowns then
 			activeCooldowns[hash] = {}
 			cooldowns = activeCooldowns[hash]
@@ -1446,8 +1448,8 @@ function mod:Toggle(db, visibilityUpdate)
 			end
 			if not isAwesome then
 				for event, unit in pairs({["UPDATE_MOUSEOVER_UNIT"] = 'mouseover', ["PLAYER_FOCUS_CHANGED"] = 'focus'}) do
-					if not self:IsHooked(NP, event) then
-						self:SecureHook(NP, event, function()
+					do
+						self:RegisterEvent(event, function()
 							if UnitExists(unit) then
 								if not UnitIsPlayer(unit) then
 									local name = UnitName(unit)
@@ -1485,6 +1487,8 @@ function mod:Toggle(db, visibilityUpdate)
 				local isPlayer = unitType == 'FRIENDLY_PLAYER' or unitType == 'ENEMY_PLAYER'
 
 				plate.isPlayerString = tostring(isPlayer)
+
+				if not plate.CDTracker then return end
 
 				for _, f in pairs(plate.CDTracker) do
 					f:Hide()
@@ -1533,7 +1537,9 @@ function mod:Toggle(db, visibilityUpdate)
 			for frame in pairs(NP.CreatedPlates) do
 				local plate = frame.UnitFrame
 				if plate and plate.CDTracker then
-					plate.CDTracker:Hide()
+					for _, f in pairs(plate.CDTracker) do
+						f:Hide()
+					end
 				end
 			end
 		end

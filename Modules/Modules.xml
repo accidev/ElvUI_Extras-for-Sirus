@@ -11,14 +11,14 @@
 	<Include file="Blizzard\LootStyle.lua"/>>
 	<Include file="Blizzard\Misc.lua"/>>
 
-	<Include file="Nameplates\Auras.lua"/>>
-	<Include file="Nameplates\NameLevel.lua"/>>
+	<!-- <Include file="Nameplates\Auras.lua"/>> redundant: native oUF Auras -->
+	<!-- <Include file="Nameplates\NameLevel.lua"/>> redundant: native name/level tags -->
 	<Include file="Nameplates\QuestIcons.lua"/>>
-	<Include file="Nameplates\GuildsTitles_data.lua"/>>
-	<Include file="Nameplates\GuildsTitles.lua"/>>
-	<Include file="Nameplates\ClassificationIcons.lua"/>>
+	<!-- <Include file="Nameplates\GuildsTitles_data.lua"/>> disabled with GuildsTitles -->
+	<!-- <Include file="Nameplates\GuildsTitles.lua"/>> redundant: ElvUI_Enhanced provides guild/NPC titles -->
+	<!-- <Include file="Nameplates\ClassificationIcons.lua"/>> redundant: native ClassificationIndicator -->
 	<Include file="Nameplates\Cooldowns.lua"/>>
-	<Include file="Nameplates\StyleFilter.lua"/>>
+	<!-- <Include file="Nameplates\StyleFilter.lua"/>> redundant: native StyleFilter -->
 	<Include file="Nameplates\Targets.lua"/>>
 	<Include file="Nameplates\DepthOfField.lua"/>>
 	<Include file="Nameplates\Misc.lua"/>>

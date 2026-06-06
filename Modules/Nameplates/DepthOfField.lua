@@ -249,6 +249,10 @@ end
 
 function mod:PlateFade(frame, timeToFade, endAlpha)
 	local frameX, frameY = frame:GetCenter()
+	if not (frameX and frameY) then
+		self.hooks[NP].PlateFade(NP, frame, timeToFade, frame:GetAlpha(), endAlpha)
+		return
+	end
 	self.hooks[NP].PlateFade(NP, frame, timeToFade, frame:GetAlpha(),
 		endAlpha *
 		max(
@@ -260,6 +264,10 @@ end
 
 function mod:PlateFadeMouse(frame, timeToFade, endAlpha)
 	local frameX, frameY = frame:GetCenter()
+	if not (frameX and frameY) then
+		self.hooks[NP].PlateFade(NP, frame, timeToFade, frame:GetAlpha(), endAlpha)
+		return
+	end
 	self.hooks[NP].PlateFade(NP, frame, timeToFade, frame:GetAlpha(),
 		endAlpha *
 		max(
@@ -363,10 +371,13 @@ function mod:Toggle(db, visibilityUpdate)
 
 			if self:IsHooked(NP, "PlateFade") then self:Unhook(NP, "PlateFade") end
 			if self:IsHooked(NP, "OnCreated") then self:Unhook(NP, "OnCreated") end
+			local onCreated
 			if db.enableMouse then
-				self:SecureHook(NP, "OnCreated", function(_, plate)
+				onCreated = function(plate)
 					local frame = plate.UnitFrame
+					if not frame then return end
 					local frameX, frameY = frame:GetCenter()
+					if not (frameX and frameY) then return end
 					frame:SetAlpha(
 						max(
 							min(
@@ -377,18 +388,24 @@ function mod:Toggle(db, visibilityUpdate)
 							minOpacity
 						)
 					)
-				end)
+				end
 			else
-				self:SecureHook(NP, "OnCreated", function(_, plate)
+				onCreated = function(plate)
 					local frame = plate.UnitFrame
+					if not frame then return end
 					local frameX, frameY = frame:GetCenter()
+					if not (frameX and frameY) then return end
 					frame:SetAlpha(
 						max(
 							min(exp(-sqrt((abs(frameX - centerX)/centerX)^2 + (abs(frameY - centerY)/centerY)^2)^centerCurve * falloffRate), 1),
 							minOpacity
 						)
 					)
-				end)
+				end
+			end
+			self:SecureHook(NP, "OnCreated", function(_, plate) onCreated(plate) end)
+			for plate in pairs(NP.CreatedPlates) do
+				onCreated(plate)
 			end
 
 			if db.ignoreTarget then

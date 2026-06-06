@@ -403,6 +403,8 @@ end
 
 function mod:UpdateQuestStatus(db, frame, unit, unitName, unitType)
     local questIcon = frame.questIcon
+	if not questIcon then return end
+	if not unitType or not unitName then questIcon:Hide() return end
 	local unitQuest
 
 	if unit then
@@ -453,7 +455,9 @@ function mod:UpdateQuestStatus(db, frame, unit, unitName, unitType)
 end
 
 function mod:UpdateQuestIcon(frame, questIcon, db)
-	local level = frame.Health:GetFrameLevel() + db.level
+	if not questIcon then return end
+	local baseLevel = frame.Health and frame.Health:GetFrameLevel() or frame:GetFrameLevel()
+	local level = baseLevel + db.level
 	questIcon:SetFrameLevel(level)
 	questIcon:Size(db.iconSize)
 
@@ -520,13 +524,17 @@ function mod:UpdateIconSettings(db)
 end
 
 function mod:OnShow(frame, db)
+	if not frame or not frame.questIcon then return end
+
     local unitType = frame.UnitType
 
 	if unitType ~= "FRIENDLY_NPC" and unitType ~= "ENEMY_NPC" then
 		frame.questIcon:Hide()
 		return
 	end
-	mod:UpdateQuestStatus(db, frame, frame.unit or frame:GetParent().unit, frame.UnitName, unitType)
+
+	local parent = frame:GetParent()
+	mod:UpdateQuestStatus(db, frame, frame.unit or (parent and parent.unit), frame.UnitName, unitType)
 end
 
 
@@ -701,7 +709,7 @@ function mod:Toggle(db)
 		core:RegisterNPElement('questIcon')
 		core:RegisterAreaUpdate(modName)
 		if self:IsHooked(E, "ToggleOptionsUI") then self:Unhook(E, "ToggleOptionsUI") self.ishooked = nil end
-		if self:IsHooked(E, "Construct_Highlight") then self:Unhook(E, "Construct_Highlight") end
+		if self:IsHooked(NP, "Construct_Highlight") then self:Unhook(NP, "Construct_Highlight") end
 		if isAwesome or not core.reload then
 			if self:IsHooked(NP, "OnShow") then self:Unhook(NP, "OnShow") end
 		else

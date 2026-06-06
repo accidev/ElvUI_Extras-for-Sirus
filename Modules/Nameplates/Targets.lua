@@ -824,6 +824,7 @@ function mod:AwesomeUpdateName(frame, unitType, isUpdate)
 end
 
 function mod:UpdateName(frame, unitType, isUpdate, unit)
+	if not frame.targetNames then return end
 	local targetName = frame.targetNames[unitType]
 	if targetName and targetName.isShown then
 		if isUpdate then
@@ -834,7 +835,7 @@ function mod:UpdateName(frame, unitType, isUpdate, unit)
 			holder:Point(data.point, frame.Health:IsShown() and frame.Health or frame.Name,
 													data.relativeTo, data.xOffset, data.yOffset)
 		end
-		funcs[unitType](frame, targetName, unit or frame.unit or NP[unitType][frame.UnitName] or NP.UnitByName[frame.UnitName])
+		funcs[unitType](frame, targetName, unit or frame.unit)
 	end
 end
 
@@ -1095,10 +1096,13 @@ function mod:Toggle(db, visibilityUpdate)
 					self:SecureHook(NP, "OnHide")
 				end
 			end
-			if not self:IsHooked(NP, "Construct_Name") then
-				self:SecureHook(NP, "Construct_Name", function(_, frame)
-					self:SetupFrame(frame)
+			if not self:IsHooked(NP, "OnCreated") then
+				self:SecureHook(NP, "OnCreated", function(_, plate)
+					self:SetupFrame(plate)
 				end)
+			end
+			for plate in pairs(NP.CreatedPlates) do
+				self:SetupFrame(plate)
 			end
 			core:RegisterNPElement('targetNamesHolder', function(unitType, frame, element)
 				local points = values[unitType]
@@ -1109,7 +1113,7 @@ function mod:Toggle(db, visibilityUpdate)
 			end)
 		else
 			self:UnregisterEvent("UNIT_TARGET")
-			for _, func in ipairs({"SetMouseoverFrame", "Construct_Name",
+			for _, func in ipairs({"SetMouseoverFrame", "OnCreated",
 									"CacheGroupUnits", "OnShow", "Update_CPoints", "UpdateElement_All"}) do
 				if self:IsHooked(NP, func) then self:Unhook(NP, func) end
 			end
@@ -1125,7 +1129,7 @@ function mod:Toggle(db, visibilityUpdate)
 		end
 		self.initialized = true
 	elseif self.initialized then
-		for _, func in ipairs({"Construct_Name", "CacheGroupUnits", "OnShow", "Update_CPoints", "UpdateElement_All"}) do
+		for _, func in ipairs({"OnCreated", "CacheGroupUnits", "OnShow", "Update_CPoints", "UpdateElement_All"}) do
 			if self:IsHooked(NP, func) then self:Unhook(NP, func) end
 		end
 		if self:IsHooked(NP, "OnHide") then
