@@ -3,7 +3,6 @@ local core = E:GetModule("Extras")
 local mod = core:NewModule("NPMisc.", "AceHook-3.0")
 local NP = E:GetModule("NamePlates")
 
-local isAwesome = false
 local modName = mod:GetName()
 mod.initialized = {}
 
@@ -18,9 +17,7 @@ function mod:updateVisibilityState(db, areaType)
 		if unitType == "FRIENDLY_PLAYER" then
 			local checkType = tonumber(data[areaType])
 			if not checkType then
-				if isAwesome then
-					if self:IsHooked(NP, "OnShow") then self:Unhook(NP, "OnShow") end
-				elseif self:IsHooked(NP, "OnShow") then
+				if self:IsHooked(NP, "OnShow") then
 					self.OnShow = function(_, plate, ...)
 						self.hooks[NP].OnShow(plate, ...)
 					end
@@ -165,11 +162,7 @@ function mod:LoadConfig(db)
 				get = function(info) return selectedTypeData()[info[#info]] end,
 				set = function(info, value)
 					selectedTypeData()[info[#info]] = value
-					if not isAwesome then
-						E:StaticPopup_Show("PRIVATE_RL")
-					else
-						self:Toggle(db)
-					end
+					E:StaticPopup_Show("PRIVATE_RL")
 				end,
 				args = {
 					useDefaults = {
@@ -445,7 +438,7 @@ function mod:Toggle(db)
 		self.initialized.visibility = true
 	elseif self.initialized.visibility then
 		core:RegisterAreaUpdate(modName)
-		if isAwesome or not core.reload then
+		if not core.reload then
 			if self:IsHooked(NP, "OnShow") then self:Unhook(NP, "OnShow") end
 		elseif self:IsHooked(NP, "OnShow") then
 			self.OnShow = function(_, plate, ...)

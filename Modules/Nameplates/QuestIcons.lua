@@ -5,7 +5,6 @@ local NP = E:GetModule("NamePlates")
 local LSM = E.Libs.LSM
 
 local modName = mod:GetName()
-local isAwesome = false
 
 mod.initialized = false
 
@@ -134,7 +133,7 @@ function mod:LoadConfig(db)
 						desc = "",
 						set = function(info, value)
 							db[info[#info]] = value
-							if value and not isAwesome then
+							if value then
 								E:StaticPopup_Show("PRIVATE_RL")
 							else
 								self:Toggle(db)
@@ -547,9 +546,6 @@ function mod:QUEST_ACCEPTED(questIndex, db)
 				break
 			end
 		end
-		if isAwesome then
-			self:UpdateAllPlates(db)
-		end
 	end)
 end
 
@@ -565,9 +561,6 @@ function mod:QUEST_REMOVED(db)
 					break
 				end
 			end
-		end
-		if isAwesome then
-			self:UpdateAllPlates(db)
 		end
 	end)
 end
@@ -695,13 +688,9 @@ function mod:Toggle(db)
 			end)
 		end
 
-		if not isAwesome then
-			self:RegisterEvent("UPDATE_MOUSEOVER_UNIT", function() parseTip('mouseover', db) end)
-			self:RegisterEvent("PLAYER_TARGET_CHANGED", function() parseTip('target', db) end)
-			self:RegisterEvent("PLAYER_FOCUS_CHANGED", function() parseTip('focus', db) end)
-		end
-
-
+		self:RegisterEvent("UPDATE_MOUSEOVER_UNIT", function() parseTip('mouseover', db) end)
+		self:RegisterEvent("PLAYER_TARGET_CHANGED", function() parseTip('target', db) end)
+		self:RegisterEvent("PLAYER_FOCUS_CHANGED", function() parseTip('focus', db) end)
 
 		self:UpdateIconSettings(db)
 		self.initialized = true
@@ -710,7 +699,7 @@ function mod:Toggle(db)
 		core:RegisterAreaUpdate(modName)
 		if self:IsHooked(E, "ToggleOptionsUI") then self:Unhook(E, "ToggleOptionsUI") self.ishooked = nil end
 		if self:IsHooked(NP, "Construct_Highlight") then self:Unhook(NP, "Construct_Highlight") end
-		if isAwesome or not core.reload then
+		if not core.reload then
 			if self:IsHooked(NP, "OnShow") then self:Unhook(NP, "OnShow") end
 		else
 			self.origOnshow = self.origOnshow or self.OnShow

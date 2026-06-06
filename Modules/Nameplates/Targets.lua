@@ -5,7 +5,6 @@ local NP = E:GetModule("NamePlates")
 local LSM = E.Libs.LSM
 
 local modName = mod:GetName()
-local isAwesome = false
 
 mod.initialized = false
 mod.frames = {
@@ -25,7 +24,6 @@ local utf8lower, utf8sub, utf8len = string.utf8lower, string.utf8sub, string.utf
 local twipe = table.wipe
 local UnitName, UnitClass, UnitReaction, UnitExists, UnitGUID, UnitIsPlayer = UnitName, UnitClass, UnitReaction, UnitExists, UnitGUID, UnitIsPlayer
 local RAID_CLASS_COLORS, UNKNOWN, NONE = RAID_CLASS_COLORS, UNKNOWN, NONE
-local GetNamePlateForUnit = isAwesome and C_NamePlate.GetNamePlateForUnit
 
 local separatorMap = {
 	NONE = "%s",
@@ -336,7 +334,7 @@ function mod:LoadConfig(db)
 					enabled = {
 						order = 1,
 						type = "toggle",
-						width = isAwesome and "full" or "normal",
+						width = "normal",
 						name = core.pluginColor..L["Enable"],
 						desc = "",
 						get = function() return selectedTypeData().enabled end,
@@ -372,7 +370,7 @@ function mod:LoadConfig(db)
 								end
 							end
 						end,
-						hidden = not isAwesome,
+						hidden = true,
 					},
 				},
 			},
@@ -691,74 +689,17 @@ end
 
 
 function mod:UpdateAllFrames(db, enable, visibilityUpdate)
-	if isAwesome then
-		for _, unitType in ipairs({'FRIENDLY_NPC', 'FRIENDLY_PLAYER', 'ENEMY_NPC', 'ENEMY_PLAYER'}) do
-			twipe(frames[unitType])
-			local data = db[unitType]
-			local handler = self[unitType]
-			if enable and data.enabled then
-				if not handler then
-					self[unitType] = CreateFrame("Frame")
-					handler = self[unitType]
-				end
-				if data.isShown then
-					self:SetScripts(handler, data, unitType)
-				else
-					handler:SetScript("OnUpdate", nil)
-					handler:Hide()
-					self[unitType] = nil
-				end
-			elseif handler then
-				handler:SetScript("OnUpdate", nil)
-				handler:Hide()
-				self[unitType] = nil
-			end
-		end
-	end
 	if enable then
 		if visibilityUpdate then
-			if isAwesome then
-				for frame in pairs(NP.VisiblePlates) do
-					local unitType = frame.UnitType
-					if unitType and self[unitType] then
-						self:AwesomeUpdateName(frame, unitType, true)
-					else
-						for _, targetName in pairs(frame.targetNames) do
-							targetName:Hide()
-							targetName.lastName = nil
-						end
-					end
-				end
-			else
-				for plate in pairs(NP.CreatedPlates) do
-					local frame = plate.UnitFrame
-					if frame then
-						for unitType, targetName in pairs(frame.targetNames) do
-							targetName:Hide()
-							targetName.lastName = nil
-							targetName.isShown = db[unitType].isShown
-						end
-						self:UpdateName(frame, frame.UnitType, true)
-					end
-				end
-			end
-		elseif isAwesome then
 			for plate in pairs(NP.CreatedPlates) do
 				local frame = plate.UnitFrame
 				if frame then
-					local unitType = frame.UnitType
-					if frame.targetNames then
-						for unitType in pairs(frame.targetNames) do
-							if not values[unitType] then
-								frame.targetNames[unitType]:Hide()
-							end
-						end
+					for unitType, targetName in pairs(frame.targetNames) do
+						targetName:Hide()
+						targetName.lastName = nil
+						targetName.isShown = db[unitType].isShown
 					end
-					if unitType and frame:IsShown() then
-						frames[unitType][frame] = true
-					end
-					self:SetupFrame(frame)
-					self:AwesomeUpdateName(frame, unitType, true)
+					self:UpdateName(frame, frame.UnitType, true)
 				end
 			end
 		else
@@ -802,24 +743,6 @@ function mod:UpdateAllFrames(db, enable, visibilityUpdate)
 				end
 			end
 		end
-	end
-end
-
-function mod:AwesomeUpdateName(frame, unitType, isUpdate)
-	if self[unitType] then
-		if not next(frames[unitType]) then
-			self[unitType]:Show()
-		end
-		frames[unitType][frame] = true
-		if isUpdate then
-			local data = values[unitType]
-			local holder = frame.targetNamesHolder
-			holder:SetFrameLevel(frame.Health:GetFrameLevel() + data.level)
-			holder:ClearAllPoints()
-			holder:Point(data.point, frame.Health:IsShown() and frame.Health or frame.Name,
-													data.relativeTo, data.xOffset, data.yOffset)
-		end
-		funcs[unitType](frame, frame.targetNames[unitType], frame.unit)
 	end
 end
 
@@ -995,106 +918,40 @@ function mod:Toggle(db, visibilityUpdate)
 			self:Toggle(db, true)
 		end)
 		if updateVisibilityState(db, core:GetCurrentAreaType()) then
-			if isAwesome then
-				self:UpdateAllFrames(db, true)
-				self:RegisterEvent("UNIT_TARGET", function(_, unit)
-					if unit ~= "player" and not find(unit, "nameplate", 1, true) then
-						local plate = GetNamePlateForUnit(unit)
-						if plate then
-							local frame = plate.UnitFrame
-							self:AwesomeUpdateName(frame, frame.UnitType)
-						end
-					end
-				end)
-				if not self:IsHooked(NP, "OnShow") then
-					self:SecureHook(NP, "OnShow", function(self)
-						if self.unit then
-							local frame = self.UnitFrame
-							mod:AwesomeUpdateName(frame, frame.UnitType, true)
-						end
-					end)
+			self.OnHide = function(_, self)
+				for _, targetName in pairs(self.UnitFrame.targetNames) do
+					targetName:Hide()
+					targetName.lastName = nil
 				end
-				self.OnHide = function(_, self, ...)
-					local frame = self.UnitFrame
-					local unitType = frame.UnitType
-					if mod[unitType] then
-						frames[unitType][frame] = nil
-						if not next(frames[unitType]) then
-							mod[unitType]:Hide()
-						end
-					end
-					for _, targetName in pairs(frame.targetNames) do
-						targetName:Hide()
-						targetName.lastName = nil
-					end
-					return mod.hooks[NP].OnHide(self, ...)
-				end
-			else
-				self.OnHide = function(_, self)
-					for _, targetName in pairs(self.UnitFrame.targetNames) do
-						targetName:Hide()
-						targetName.lastName = nil
-					end
-				end
-				self:UpdateAllFrames(db, true)
-				if not self:IsHooked(NP, "CacheGroupUnits") then
-					self:SecureHook(NP, "CacheGroupUnits", function()
-						for frame in pairs(NP.VisiblePlates) do
-							self:UpdateName(frame, frame.UnitType, true)
-						end
-					end)
-				end
-				if not self:IsHooked(NP, "Update_CPoints") then
-					self:SecureHook(NP, "Update_CPoints", function(_, frame)
-						self:UpdateName(frame, frame.UnitType, true)
-					end)
-				end
-				if not self:IsHooked(NP, "UpdateElement_All") then
-					self:SecureHook(NP, "UpdateElement_All", function(_, frame)
-						if frame.unit ~= "mouseover" then
-							self:UpdateName(frame, frame.UnitType, true)
-						end
-					end)
-				end
-				if not self:IsHooked(NP, "SetMouseoverFrame") then
-					local mouseoverFrame = nil
-					self:SecureHook(NP, "SetMouseoverFrame", function(_, frame)
-						if frame.isMouseover then
-							if mouseoverFrame ~= frame then
-								mouseoverFrame = frame
-								local unitType = frame.UnitType
-								if frame.targetNames and frame.targetNames[unitType] then
-									self:UpdateName(frame, unitType, nil, "mouseover")
-								end
-							else
-								local unitType = frame.UnitType
-								local targetName = frame.targetNames and frame.targetNames[unitType]
-								if targetName and targetName.lastName ~= UnitName("mouseovertarget") then
-									self:UpdateName(frame, unitType, nil, "mouseover")
-								end
-							end
-						elseif frame == mouseoverFrame then
-							mouseoverFrame = nil
-							local unitType = frame.UnitType
-							self:UpdateName(frame, unitType)
-						end
-					end)
-				end
-				self:RegisterEvent("UNIT_TARGET", function(_, unit)
-					if unit ~= "player" then
-						local frame = NP:SearchNameplateByGUID(UnitGUID(unit))
-						if frame then
-							self:UpdateName(frame, frame.UnitType, nil, unit)
-						end
+			end
+			self:UpdateAllFrames(db, true)
+			if not self:IsHooked(NP, "OnShow") then
+				self:SecureHook(NP, "OnShow", function(self)
+					local frame = self.unit and self or self.UnitFrame
+					if frame and frame.unit and frame.targetNames and frame.UnitType then
+						mod:UpdateName(frame, frame.UnitType, true)
 					end
 				end)
 			end
+			if not self.poller then
+				self.poller = CreateFrame("Frame")
+			end
+			do
+				local timeElapsed = 0
+				self.poller:SetScript("OnUpdate", function(_, elapsed)
+					timeElapsed = timeElapsed + elapsed
+					if timeElapsed < 0.15 then return end
+					timeElapsed = 0
+					for f in pairs(NP.VisiblePlates) do
+						if f.unit and f.targetNames and f.UnitType then
+							mod:UpdateName(f, f.UnitType)
+						end
+					end
+				end)
+				self.poller:Show()
+			end
 			if not self:IsHooked(NP, "OnHide") then
-				if isAwesome then
-					self:RawHook(NP, "OnHide")
-				else
-					self:SecureHook(NP, "OnHide")
-				end
+				self:SecureHook(NP, "OnHide")
 			end
 			if not self:IsHooked(NP, "OnCreated") then
 				self:SecureHook(NP, "OnCreated", function(_, plate)
@@ -1113,27 +970,24 @@ function mod:Toggle(db, visibilityUpdate)
 			end)
 		else
 			self:UnregisterEvent("UNIT_TARGET")
-			for _, func in ipairs({"SetMouseoverFrame", "OnCreated",
-									"CacheGroupUnits", "OnShow", "Update_CPoints", "UpdateElement_All"}) do
+			if self.poller then self.poller:SetScript("OnUpdate", nil) end
+			for _, func in ipairs({"OnCreated", "OnShow"}) do
 				if self:IsHooked(NP, func) then self:Unhook(NP, func) end
 			end
 			if self:IsHooked(NP, "OnHide") then
-				if isAwesome then
-					self:Unhook(NP, "OnHide")
-				else
-					self.OnHide = function() end
-				end
+				self.OnHide = function() end
 			end
 			self:UpdateAllFrames(db)
 			core:RegisterNPElement('targetNamesHolder')
 		end
 		self.initialized = true
 	elseif self.initialized then
-		for _, func in ipairs({"OnCreated", "CacheGroupUnits", "OnShow", "Update_CPoints", "UpdateElement_All"}) do
+		if self.poller then self.poller:SetScript("OnUpdate", nil) end
+		for _, func in ipairs({"OnCreated", "OnShow"}) do
 			if self:IsHooked(NP, func) then self:Unhook(NP, func) end
 		end
 		if self:IsHooked(NP, "OnHide") then
-			if isAwesome or not core.reload then
+			if not core.reload then
 				self:Unhook(NP, "OnHide")
 			else
 				self.OnHide = function() end

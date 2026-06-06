@@ -9,7 +9,6 @@ local modName = mod:GetName()
 local activeCooldowns, testing = {}, false
 local highlightedSpells = {["ENEMY_PLAYER"] = {}, ["FRIENDLY_PLAYER"] = {}}
 local edgeFile = LSM:Fetch("border", "ElvUI GlowBorder")
-local isAwesome = false
 
 local band = bit.band
 local _G, pairs, ipairs, select, unpack, next = _G, pairs, ipairs, select, unpack, next
@@ -573,7 +572,7 @@ function mod:LoadConfig(db)
 								testing = false
 								testMode(db)
 							end
-							if value and not isAwesome then
+							if value then
 								E:StaticPopup_Show("PRIVATE_RL")
 							else
 								self:Toggle(db)
@@ -1446,40 +1445,38 @@ function mod:Toggle(db, visibilityUpdate)
 					plate.CDTracker = mod:ConstructCDTracker(db, plate)
 				end)
 			end
-			if not isAwesome then
-				for event, unit in pairs({["UPDATE_MOUSEOVER_UNIT"] = 'mouseover', ["PLAYER_FOCUS_CHANGED"] = 'focus'}) do
-					do
-						self:RegisterEvent(event, function()
-							if UnitExists(unit) then
-								if not UnitIsPlayer(unit) then
-									local name = UnitName(unit)
-									local hash = (name or "")..'false'
-									if activeCooldowns[hash] then
-										for frame in pairs(NP.VisiblePlates) do
-											local unitType = frame.UnitType
-											if frame.UnitName == name and (unitType == "FRIENDLY_NPC" or unitType == "ENEMY_NPC") then
-												mod:HandlePets(frame, name, unit)
-											end
+			for event, unit in pairs({["UPDATE_MOUSEOVER_UNIT"] = 'mouseover', ["PLAYER_FOCUS_CHANGED"] = 'focus'}) do
+				do
+					self:RegisterEvent(event, function()
+						if UnitExists(unit) then
+							if not UnitIsPlayer(unit) then
+								local name = UnitName(unit)
+								local hash = (name or "")..'false'
+								if activeCooldowns[hash] then
+									for frame in pairs(NP.VisiblePlates) do
+										local unitType = frame.UnitType
+										if frame.UnitName == name and (unitType == "FRIENDLY_NPC" or unitType == "ENEMY_NPC") then
+											mod:HandlePets(frame, name, unit)
 										end
 									end
 								end
 							end
-						end)
-					end
+						end
+					end)
 				end
-				self:RegisterEvent("PLAYER_TARGET_CHANGED", function()
-					if UnitExists('target') then
-						local name = UnitName('target')
-						if activeCooldowns[(name or "")..'false'] then
-							for frame in pairs(NP.VisiblePlates) do
-								if frame:GetParent():GetAlpha() == 1 then
-									mod:HandlePets(frame, name, 'target')
-								end
+			end
+			self:RegisterEvent("PLAYER_TARGET_CHANGED", function()
+				if UnitExists('target') then
+					local name = UnitName('target')
+					if activeCooldowns[(name or "")..'false'] then
+						for frame in pairs(NP.VisiblePlates) do
+							if frame:GetParent():GetAlpha() == 1 then
+								mod:HandlePets(frame, name, 'target')
 							end
 						end
 					end
-				end)
-			end
+				end
+			end)
 			self.OnShow = function(_, self)
 				local plate = self.UnitFrame
 				local playerName = plate.UnitName
@@ -1528,11 +1525,7 @@ function mod:Toggle(db, visibilityUpdate)
 			self:UnregisterEvent("PLAYER_TARGET_CHANGED")
 			self:UnregisterEvent("PLAYER_FOCUS_CHANGED")
 			if self:IsHooked(NP, "OnShow") then
-				if isAwesome then
-					self:Unhook(NP, "OnShow")
-				else
-					self.OnShow = function() end
-				end
+				self.OnShow = function() end
 			end
 			for frame in pairs(NP.CreatedPlates) do
 				local plate = frame.UnitFrame
@@ -1553,7 +1546,7 @@ function mod:Toggle(db, visibilityUpdate)
 		if self:IsHooked(E, "ToggleOptionsUI") then self:Unhook(E, "ToggleOptionsUI") end
 		if self:IsHooked(NP, "Construct_Highlight") then self:Unhook(NP, "Construct_Highlight") end
 		if self:IsHooked(NP, "OnShow") then
-			if isAwesome or not core.reload then
+			if not core.reload then
 				self:Unhook(NP, "OnShow")
 			else
 				self.OnShow = function() end
